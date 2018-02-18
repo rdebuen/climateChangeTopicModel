@@ -1,0 +1,96 @@
+#!/usr/bin/env python2
+# -*- coding: utf-8 -*-
+"""
+
+
+@author: RebecadeBuen
+"""
+
+import os
+import re
+import csv
+from bs4 import BeautifulSoup
+os.chdir("xx")
+
+#create list with files in directory
+NP_articles=os.listdir(".")
+len(NP_articles)
+#NPart1 = open('NYT0001.HTML', 'rd').read()
+#print NPart1
+#doc_id=[m.start() for m in re.finditer('DOC_ID', NPart1)]
+
+didntwork = []
+data=[]
+for hfile in NP_articles:
+    html=open(hfile,'rd').read()
+    doc_id=[m.start() for m in re.finditer('DOC_ID', html)]
+    for i in range(1,len(doc_id)):
+        try:
+            # pulling each single article from the html file with all articles
+            end=doc_id[i]
+            start=doc_id[i-1]
+            html_art=html[start:end]
+            # transforming the string to a BeautifulSoup object
+            soup = BeautifulSoup(html_art)
+            # Pulling the date, which can be found in the <div class=c3>
+            date = soup.find_all("div", {"class":"c3"})
+            date_len = len(date)
+            if date_len == 3:
+                # Only interested in the second element in date, which has the actual
+                #       date.
+                date_text = date[1].get_text()
+            else:
+                date_text = date[0].get_text()
+            # Pulling what in the <div class=c5>. Info about the title and 
+            #   article section
+            title_section = soup.find_all("div", {"class":"c5"})
+            # Getting the text for each element in 'title_section'
+            ts_text = [ts.get_text() for ts in title_section]
+            # Getting only the first 8 characters of each text element in 'ts_text"
+            ts_short = [ts[:7] for ts in ts_text]
+            # Look for the element starting with 'SECTION'
+            try:
+                sec_i = ts_short.index('SECTION')
+                section = re.sub('SECTION: ', '', ts_text[sec_i][9:])
+            except:
+                section = ''
+            # The first element is the title
+            title = title_section[1].get_text()
+            # Pulling info in the <p> </p> tags: the text of the article
+            text_elements = soup.find_all("p")
+            # Getting the text in each paragraph
+            text_str_list = [t.get_text() for t in text_elements]  
+            # Some of the first elements in 'text_str_list' are not the text.
+            #   The actual text starts right after 'LENGTH: XXX words'. Checking
+            #   where the LENGTH is and removing the stuff before that.
+            text_short = [t[:6] for t in text_str_list]
+            try:
+                if 'DATELI' in text_short:
+                    length_i = text_short.index('DATELI')
+                else:
+                    length_i = text_short.index('LENGTH')
+                text = ' '.join(text_str_list[length_i + 1:])
+            except:
+                text = ' '.join(text_str_list[8:])
+            # Transforming title into unicode to make sure it can be saved into a CSV
+            title1 = title.encode('ascii', 'ignore').decode('ascii', 'ignore')
+            # Transforming section into unicode to make sure it can be saved into a CSV
+            section = section.encode('ascii', 'ignore').decode('ascii', 'ignore')
+            # Transforming date into unicode to make sure it can be saved into a CSV
+            date_text1 = date_text.encode('ascii', 'ignore').decode('ascii', 'ignore')
+            # Getting rid of stuff in 'date_text' that it's not the actual date
+            date_text1 = ' '.join(date_text1.split(',')[:2])
+            # Transforming text into unicode to make sure it can be saved into a CSV
+            text = text.encode('ascii', 'ignore').decode('ascii', 'ignore')
+            dic = {'title':title1, 'section':section, 'date':date_text1, 'text':text}
+            data.append(dic)
+        except:
+            article_info = str(hfile) + '_' + str(i)
+            didntwork.append(article_info)
+            pass
+
+        
+with open('dataset.csv', 'wb') as csvfile:
+    writer = csv.DictWriter(csvfile, data[0].keys())
+    writer.writeheader()
+    writer.writerows(data)
