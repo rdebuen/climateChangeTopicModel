@@ -1,3 +1,4 @@
+#Code written with help of Andreu for extracting relevant text from HTML format
 #!/usr/bin/env python2
 # -*- coding: utf-8 -*-
 """
